@@ -1,4 +1,4 @@
-/* Shanghai Pocket family sync v4. No access credentials are embedded in this source. */
+/* Shanghai Pocket family sync v5. No access credentials are embedded in this source. */
 'use strict';
 var familyPhotoDraft=[];
 (()=>{
@@ -6,10 +6,10 @@ const API='https://shanghai-pocket-family-sync.seoyoon-gravity.chatgpt.site/api/
 let config={token:'',remote:{},pending:{},conflicts:[]},lastFlat={},busy=false,timer,failed='',deferred=false;
 const eq=(a,b)=>JSON.stringify(a)===JSON.stringify(b),clone=x=>JSON.parse(JSON.stringify(x)),own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 function flatten(s){
- const out={};for(const name of ['overrides','favs','visited','plans','photos'])for(const [id,value]of Object.entries(s[name]||{}))out[name+'/'+id]=value;
+ const out={};for(const name of ['overrides','favs','visited','plans','photos','sources','members','tripDays'])for(const [id,value]of Object.entries(s[name]||{}))out[name+'/'+id]=value;
  for(const p of s.custom||[])out['custom/'+p.id]=p;
  for(const id of s.deleted||[])out['deleted/'+id]=true;
- if(s.order?.length)out.order=s.order;
+ if(s.order?.length)out.order=s.order;if(s.tripOrder)out.tripOrder=s.tripOrder;if(s.tripStart!==undefined)out.tripStart=s.tripStart;for(const [placeId,ratings]of Object.entries(s.ratings||{}))for(const [memberId,n]of Object.entries(ratings||{}))out['ratings/'+placeId+'/'+memberId]=n;
  for(const p of s.checklist||[])for(const field of ['title','status','owner','memo'])out['checklist/'+p.id+'/'+field]=p[field]||'';
  return out;
 }
@@ -17,10 +17,10 @@ function inflate(records){
  const s=defaultState(),checks={};s.photos={};s.checklist=[];
  for(const [key,r]of Object.entries(records)){
   if(r.value===null)continue;const [name,id,field]=key.split('/');
-  if(name==='order'&&Array.isArray(r.value))s.order=r.value.filter(x=>typeof x==='string');
+  if(name==='tripOrder'&&Array.isArray(r.value))s.tripOrder=r.value.filter(x=>typeof x==='string');else if(name==='tripStart'&&typeof r.value==='string')s.tripStart=r.value;else if(name==='ratings'&&id&&field){s.ratings??={};s.ratings[id]??={};s.ratings[id][field]=r.value;}else if(name==='order'&&Array.isArray(r.value))s.order=r.value.filter(x=>typeof x==='string');
   else if(name==='custom'&&id)s.custom.push(r.value);
   else if(name==='deleted'&&id&&r.value)s.deleted.push(id);
-  else if(['overrides','favs','visited','plans','photos'].includes(name)&&id)s[name][id]=r.value;
+  else if(['overrides','favs','visited','plans','photos','sources','members','tripDays'].includes(name)&&id)s[name][id]=r.value;
   else if(name==='checklist'&&id&&['title','status','owner','memo'].includes(field)){
    const p=checks[id]||(checks[id]={id,title:'',status:'todo',owner:'',memo:'',updatedAt:''});p[field]=r.value;
    if(r.updatedAt&&r.updatedAt>p.updatedAt)p.updatedAt=r.updatedAt;
@@ -38,7 +38,7 @@ function status(){
  $('#familyConnect').textContent=connected?'가족 연결 ✓':'가족 연결';$('#familyCreate').classList.toggle('hidden',connected);$('#familyConnected').classList.toggle('hidden',!connected);$('#familyIntro').classList.toggle('hidden',connected);
  if(connected)$('#familyLink').value=inviteURL();
  const conflicts=$('#familyConflicts');conflicts.classList.toggle('hidden',!config.conflicts.length);
- conflicts.innerHTML=config.conflicts.length?'<h3>같은 내용을 함께 수정했어요</h3><p class="muted">겹치지 않은 수정은 이미 반영됐어요. 아래 항목만 어떤 내용을 쓸지 골라 주세요.</p>'+config.conflicts.map(key=>{const q=config.pending[key],r=config.remote[key];if(!q)return '';const [name,id,field]=key.split('/'),p=state.checklist?.find(x=>x.id===id);const title=name==='checklist'?(p?.title||id)+' · '+({title:'이름',status:'상태',owner:'담당자',memo:'처리 메모'}[field]||field):key;const show=v=>typeof v==='string'?v:JSON.stringify(v);return `<div class="family-conflict"><b>${esc(title)}</b><p>내 변경: ${esc(show(q.value).slice(0,180))}</p><p>가족 변경: ${esc(show(r?.value??null).slice(0,180))}</p><button class="small" data-resolve="mine" data-key="${esc(key)}">내 변경 반영</button> <button class="small quiet" data-resolve="family" data-key="${esc(key)}">가족 변경 사용</button></div>`;}).join(''):'';
+ conflicts.innerHTML=config.conflicts.length?'<h3>같은 내용을 함께 수정했어요</h3><p class="muted">겹치지 않은 수정은 이미 반영됐어요. 아래 항목만 어떤 내용을 쓸지 골라 주세요.</p>'+config.conflicts.map(key=>{const q=config.pending[key],r=config.remote[key];if(!q)return '';const [name,id,field]=key.split('/'),p=state.checklist?.find(x=>x.id===id);const title=name==='checklist'?(p?.title||id)+' · '+({title:'이름',status:'상태',owner:'담당자',memo:'처리 메모'}[field]||field):name==='ratings'?(getPlace(id)?.ko||id)+' · '+(allMembers()[field]?.name||'가족')+' 별점':name==='tripOrder'?'일차 순서':name==='tripStart'?'여행 시작일':name==='sources'?(getPlace(id)?.ko||id)+' · 저장한 출처':key;const show=v=>typeof v==='string'?v:JSON.stringify(v);return `<div class="family-conflict"><b>${esc(title)}</b><p>내 변경: ${esc(show(q.value).slice(0,180))}</p><p>가족 변경: ${esc(show(r?.value??null).slice(0,180))}</p><button class="small" data-resolve="mine" data-key="${esc(key)}">내 변경 반영</button> <button class="small quiet" data-resolve="family" data-key="${esc(key)}">가족 변경 사용</button></div>`;}).join(''):'';
 }
 function inviteURL(){return 'https://seoyoon-qag.github.io/shanghai-pocket/#family='+config.token;}
 function recordChanges(){

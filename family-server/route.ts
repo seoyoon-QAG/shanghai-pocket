@@ -9,14 +9,14 @@ function db(){if(!env.DB)throw Error('DB unavailable');return env.DB;}
 async function body(req:Request){if(!req.headers.get('content-type')?.startsWith('application/json'))throw Error('type');if(Number(req.headers.get('content-length')||0)>MAX_BODY)throw Error('size');const text=await req.text();if(new TextEncoder().encode(text).length>MAX_BODY)throw Error('size');return JSON.parse(text);}
 async function limited(req:Request,kind:string,limit:number){const ip=req.headers.get('cf-connecting-ip')||'local';const bucket=new Date().toISOString().slice(0,kind==='create'?10:16);const key=kind+':'+await hash(ip+bucket);const row=await db().prepare('INSERT INTO rate_limits (key,count) VALUES (?,1) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(key).first<{count:number}>();return !row||row.count>limit;}
 async function family(req:Request){const token=req.headers.get('authorization')?.replace(/^Bearer /,'')||'';if(!/^[A-Za-z0-9_-]{43}$/.test(token))return null;const id=await hash(token);return await db().prepare('SELECT id FROM families WHERE id=?').bind(id).first()?id:null;}
-function validKey(k:unknown):k is string{return typeof k==='string'&&k.length<250&&/^(overrides|custom|deleted|favs|visited|plans|checklist|order|photos|checks)(\/[^\u0000-\u001f]{1,180})*$/.test(k)&&!k.split('/').some(p=>['__proto__','constructor','prototype'].includes(p));}
+function validKey(k:unknown):k is string{return typeof k==='string'&&k.length<250&&/^(overrides|custom|deleted|favs|visited|plans|checklist|order|photos|checks|ratings|members|sources|tripDays|tripOrder|tripStart)(\/[^\u0000-\u001f]{1,180})*$/.test(k)&&!k.split('/').some(p=>['__proto__','constructor','prototype'].includes(p));}
 function valueString(value:unknown){const encoded=JSON.stringify(value);if(encoded===undefined||encoded.length>30000)throw Error('value');return encoded;}
 async function snapshot(id:string){const rows=await db().prepare('SELECT key,value,version,updated_at FROM entries WHERE family=? ORDER BY key').bind(id).all<{key:string,value:string,version:number,updated_at:string}>();return rows.results.map(r=>({key:r.key,value:JSON.parse(r.value),version:r.version,updatedAt:r.updated_at}));}
 async function handler(req:Request){
  const origin=req.headers.get('origin');if(origin&&!ALLOWED.has(origin)&&origin!==new URL(req.url).origin)return json(req,{error:'origin'},403);
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:headers(req)});
  const path=new URL(req.url).pathname.replace(/^\/api\/?/,'');
- if(path==='health'&&req.method==='GET')return json(req,{ok:true,version:4});
+ if(path==='health'&&req.method==='GET')return json(req,{ok:true,version:5});
  if(await limited(req,'request',300))return json(req,{error:'too_many_requests'},429);
  if(path==='families'&&req.method==='POST'){
   if(await limited(req,'create',12))return json(req,{error:'create_limit'},429);

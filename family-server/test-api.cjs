@@ -26,6 +26,12 @@ async function req(path,method='GET',data,token,raw,type,origin='https://seoyoon
  assert.equal((await patch('checklist/default-0/memo','예약 완료',1)).status,200);
  assert.equal((await patch('favs/__proto__',{},0)).status,400);
  const entries=(await req('family','GET',undefined,token)).data.entries;assert.equal(entries.find(r=>r.key.endsWith('/memo')).value,'예약 완료');assert.equal(entries.find(r=>r.key.endsWith('/status')).value,'done');
+ assert.equal((await patch('ratings/hotel/seoyoon',5,0)).status,200);
+ assert.equal((await patch('ratings/hotel/brother',3,0)).status,200);
+ assert.equal((await patch('tripStart','2030-02-27',0)).status,200);
+ assert.equal((await patch('tripOrder',['11-07','11-06'],0)).status,200);
+ assert.equal((await patch('sources/hotel',[{id:'link-1',label:'유튜브',url:'https://youtu.be/example'}],0)).status,200);
+ const newFields=(await req('family','GET',undefined,token)).data.entries;assert.equal(newFields.find(r=>r.key==='ratings/hotel/seoyoon').value,5);assert.equal(newFields.find(r=>r.key==='ratings/hotel/brother').value,3);
  const bytes=new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aLasAAAAASUVORK5CYII=','base64'));
  const image=await req('photos','POST',undefined,token,bytes,'image/png');assert.equal(image.status,201);
  assert.deepEqual(Buffer.from((await req('photos/'+image.data.id,'GET',undefined,token)).data),Buffer.from(bytes));assert.equal((await req('photos/'+image.data.id,'GET',undefined,other)).status,404);

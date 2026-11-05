@@ -37,3 +37,15 @@ HTML·JSON 백업에 가족 토큰을 넣지 않는다. 서버 사진 원본은 
 서버 원본 체크아웃: node test-api.cjs, Sites build helper. test-api.cjs는 TypeScript와 node:sqlite로 실제 SQL 조건부 갱신·가족 격리·사진 인증·입력 검사를 확인한다. 로컬 DB와 운영 DB는 별개다. 마이그레이션은 기존 SQL을 수정하지 않고 새 파일을 추가한다.
 
 운영 데이터는 GitHub 저장소에 커밋하지 않는다. 테스트 방·테스트 사진은 사용자의 실제 가족 방과 분리한다.
+
+
+## v5 데이터 확장
+
+ratings/장소ID/사람ID 키에 각자의 점수를 별도로 저장합니다. members/사람ID는 표시 이름입니다. 실제 계정 인증과는 별개이며 기존 초대 링크 권한을 유지합니다. sources/장소ID는 출처 링크 배열, tripDays/일차ID는 제목·삭제 여부, tripOrder는 일차 ID 순서, tripStart는 선택적인 실제 시작일입니다.
+
+기존 11-06~11-09 ID를 안정적인 일차 ID로 유지하여 기존 plans를 잃지 않습니다. 표시 번호·날짜는 순서와 시작일에서 계산합니다. 기존 가족 방에서 새 메타데이터가 없으면 초기 4일차를 표시하고, 변경한 값부터 공용 저장소에 반영합니다. 새 DB 마이그레이션은 필요 없으며 API에서 새 키 접두사를 허용했습니다.
+
+추가 검증: node tests/trip-features.cjs (기존 일정 이전·일차 재정렬·시작일 일괄 변경·윤년·날짜 생략·별점 분리·출처 URL 검증·공용 직렬화·백업 보존).
+
+
+trip-features.js를 수정하면 node scripts/inline-trip-features.cjs를 실행해 index.html의 인라인 사본도 갱신하세요. 별도 파일 없이 내려받은 HTML 백업에서도 기존 장소·별점·출처·일차 관리가 열리도록 포함합니다. 가족 서버 연결과 사진 불러오기는 원래 HTTPS 사이트에서 사용합니다. tests/trip-features.cjs가 인라인 사본과 원본 일치도 검사합니다.
