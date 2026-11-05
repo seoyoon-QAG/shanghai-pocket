@@ -2,7 +2,7 @@
 'use strict';
 var savedSourceDraft=[];
 const DEFAULT_TRIP_IDS=['11-06','11-07','11-08','11-09'];
-const DEFAULT_MEMBERS={seoyoon:{name:'서윤'},brother:{name:'동생'},mother:{name:'박은희 여사'}};
+const DEFAULT_MEMBERS={seoyoon:{name:'서윤'},brother:{name:'유식'},mother:{name:'박은희 여사'}};
 const PROFILE_KEY='shanghai-rating-member-v1';
 let ratingMember='';try{ratingMember=localStorage.getItem(PROFILE_KEY)||'';}catch{}
 const safeID=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(id)&&!['__proto__','constructor','prototype'].includes(id);
